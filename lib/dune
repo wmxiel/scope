@@ -1,0 +1,4 @@
+(library
+ (name scope)
+ (public_name scope)
+ (libraries unix))
