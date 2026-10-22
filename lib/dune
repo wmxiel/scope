@@ -1,4 +1,9 @@
 (library
  (name scope)
  (public_name scope)
- (libraries unix))
+ (libraries unix)
+ (foreign_stubs
+  (language c)
+  (names native)
+  (flags (:standard -std=gnu11 -Wall -Wextra -Werror)))
+ (c_library_flags -ldl))
