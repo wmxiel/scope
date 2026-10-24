@@ -1,0 +1,4 @@
+(executable
+ (name main)
+ (public_name scope)
+ (libraries scope unix))

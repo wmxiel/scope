@@ -1,0 +1,8 @@
+(test
+ (name check)
+ (libraries scope unix))
+
+(rule
+ (alias runtest)
+ (deps cli.py)
+ (action (run python3 %{dep:cli.py} %{exe:../bin/main.exe})))
