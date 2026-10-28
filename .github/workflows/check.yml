@@ -1,0 +1,17 @@
+name: check
+on: [push, pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        ocaml: [4.14.2, 5.5.0]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: ${{ matrix.ocaml }}
+      - run: sudo apt-get update && sudo apt-get install -y qemu-system-x86 libxen-dev
+      - run: opam install . --deps-only --with-test
+      - run: opam exec -- make check
+      - run: opam exec -- make xen
