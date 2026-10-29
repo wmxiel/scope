@@ -188,12 +188,26 @@ let import ~source path =
   let channel = open_in path in
   Fun.protect ~finally:(fun () -> close_in_noerr channel) (fun () ->
     if in_channel_length channel > maximum_bytes * 3 then invalid_arg "import exceeds format size budget";
+    let buffer = Bytes.create 16384 in
+    let line () =
+      let rec read length =
+        match input_char channel with
+        | '\n' -> Bytes.sub_string buffer 0 length
+        | c ->
+            if length = Bytes.length buffer then invalid_arg "import line exceeds 16384 bytes";
+            Bytes.set buffer length c;
+            read (length + 1)
+        | exception End_of_file ->
+            if length = 0 then raise End_of_file;
+            Bytes.sub_string buffer 0 length
+      in
+      read 0
+    in
     let context = ref None and frames = ref [] and count = ref 0 in
     let number = ref 0 in
     (try while true do
-      let line = input_line channel in
+      let line = line () in
       incr number;
-      if String.length line > 16384 then invalid_arg "import line exceeds 16384 bytes";
       let fields = String.split_on_char ' ' line |> List.filter ((<>) "") in
       match fields with
       | [] -> ()

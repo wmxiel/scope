@@ -232,6 +232,34 @@ let generated () =
   let exploding = capture ~context [0x1000L, Demo.page (List.init 512 (fun index -> index, 0x1007L))] in
   rejects (fun () -> ignore (Paging.enumerate ~max_entries:4096 context (Capture.read exploding)))
 
+let imports () =
+  let path = Filename.temp_file "scopeimport" "" in
+  Fun.protect ~finally:(fun () -> Sys.remove path) (fun () ->
+    let context = "context 0x80010001 0 0x1000 0x20 0xd00 2 0 48 1 1" in
+    let write text =
+      let channel = open_out_bin path in
+      Fun.protect ~finally:(fun () -> close_out_noerr channel) (fun () -> output_string channel text)
+    in
+    List.iter (fun ending ->
+      write (context ^ ending);
+      let imported = Capture.import ~source:"test" path in
+      check (Capture.pages imported = 0) "import accepts context at eof") [""; "\n"];
+    List.iter (fun ending ->
+      write (context ^ "\n" ^ String.make 16384 ' ' ^ ending);
+      check (Capture.pages (Capture.import ~source:"test" path) = 0)
+        "import accepts maximum line length") [""; "\n"];
+    List.iter (fun ending ->
+      write (context ^ "\n" ^ String.make 16385 ' ' ^ ending);
+      rejects (fun () -> ignore (Capture.import ~source:"test" path))) [""; "\n"];
+    write (context ^ "\n" ^ String.make (2 * 1024 * 1024) 'x');
+    let allocated = Gc.allocated_bytes () in
+    let rejected = try ignore (Capture.import ~source:"test" path); false with
+      Invalid_argument reason -> reason = "import line exceeds 16384 bytes"
+    in
+    let allocated = Gc.allocated_bytes () -. allocated in
+    check rejected "import rejects oversized record before parsing";
+    check (allocated < 1048576.) "import rejects oversized line with bounded allocation")
+
 let watch () =
   let base = Filename.temp_file "scopewatch" "" in
   Sys.remove base;
@@ -269,5 +297,6 @@ let () =
   aliases ();
   codec ();
   generated ();
+  imports ();
   watch ();
   Printf.printf "%d checks passed\n" !count
